@@ -48,7 +48,7 @@ def test_homography(H, mp_src, mp_dst, max_err):
     mp_src_3d = np.append(mp_src, np.ones_like(mp_src[0:1]),axis=0)
 
     # Calculate and normalized dst from src & H
-    mp_dst_estimated = np.matmul(H, mp_src_3d)
+    mp_dst_estimated = cv2.warpPerspective(mp_src_3d, H)
     mp_dst_est_norm = np.divide(mp_dst_estimated, mp_dst_estimated[2])
 
     # calculate distance between estimation and destination
@@ -83,28 +83,24 @@ def compute_homography(mp_src, mp_dst, inliers_percent, max_err):
     ## TODO: calculate k
     n = 4   # number of points for homography
     k = 30  # number of iterations
-    indices = np.indices([len(mp_src[0])])
+    indices = range(0, len(mp_src[0])-1)
 
     # Run RANSAC
     for i in range (0,k-1):
 
-        ## for debug
-        if(1):
-            print ('RANSAC iteration ' + i + 'out of ' k-1)
-
         ## sample n indices
-        indices_i = random.sample(indices, n)
-        batch_points_src = mp_src[indices_i,:]
-        batch_points_dst = mp_dst[indices_i,:]
+        indices_i = np.asarray(random.sample(indices, n))
+        batch_points_src = mp_src[:,indices_i]
+        batch_points_dst = mp_dst[:,indices_i]
 
         ## calculate model
         H_i = compute_homography_naive(batch_points_src, batch_points_dst)
 
         ## calculate model fit
-        fit_percent_i, dist_mse_i = test_homography(H_i, mp_src, mp_dst,max_err)
+        fit_percent_i, dist_mse_i = test_homography(H_i, mp_src, mp_dst, max_err)
         if (fit_percent_i >= inliers_percent):
             # H_i_all_inliers = compute_homography_naive(batch_points_src, batch_points_dst)
-            return H_i_all_inliers
+            return H_i
 
     print('RANSAC has failed to find a model which comply to inliers percent of ' + inliers_percent + 'and max error of ' + max_err)
 
@@ -113,6 +109,51 @@ def compute_homography(mp_src, mp_dst, inliers_percent, max_err):
 def panorama(img_src, img_dst, match_p_src, match_p_dst, inliers_percent, max_err):
     # TODO: add here ransac homography when Yonatan finish his part
     H = compute_homography_naive(match_p_src, match_p_dst)
+    transformed_img_src = cv2.warpPerspective(img_src, H, np.shape(img_src)[0:2])
+
+    upper_left_point = find_upper_left_point(match_p_src)
+
+    if True:
+        plt.figure()
+        plt.subplot(2, 2, 1)
+        plt.imshow(img_src)
+        plt.title('img_src')
+        plt.scatter(upper_left_point[0], upper_left_point[1], marker='x', color='r')
+        plt.subplot(2, 2, 2)
+        plt.imshow(transformed_img_src)
+        plt.title('transformed_img_src')
+        plt.scatter(match_p_dst[0, :], match_p_dst[1, :], marker='x', color='r')
+        plt.show(block=False)
+
+    pad_x = round(2*np.shape(img_dst)[0])
+    pad_y = np.shape(img_dst)[1]
+
+    transformed_img_dst = cv2.warpPerspective(img_dst, np.linalg.inv(H),
+                                              (np.shape(img_src)[0] + pad_x, np.shape(img_src)[1] + pad_y))
+
+    if DEBUG:
+        plt.subplot(2, 2, 3)
+        plt.imshow(img_dst)
+        plt.title('img_dst')
+        plt.subplot(2, 2, 4)
+        plt.imshow(transformed_img_dst)
+        plt.title('transformed_img_dst')
+        plt.show(block=False)
+
+    output_image = np.uint8(np.zeros(np.shape(transformed_img_dst)))
+    output_image[0:np.shape(transformed_img_dst)[0], 0:np.shape(transformed_img_dst)[1], :] = output_image + transformed_img_dst
+    output_image[0:np.shape(img_src)[0], 0:np.shape(img_src)[1], :] = img_src
+
+    if DEBUG:
+        plt.figure()
+        plt.imshow(output_image)
+        plt.show(block=False)
+
+    return
+
+def panorama(img_src, img_dst, match_p_src, match_p_dst, inliers_percent, max_err):
+    # TODO: add here ransac homography when Yonatan finish his part
+    H = compute_homography(match_p_src, match_p_dst, inliers_percent, max_err)
     transformed_img_src = cv2.warpPerspective(img_src, H, np.shape(img_src)[0:2])
 
     upper_left_point = find_upper_left_point(match_p_src)
