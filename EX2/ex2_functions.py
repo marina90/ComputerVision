@@ -46,24 +46,28 @@ def test_homography(H, mp_src, mp_dst, max_err):
 
     # Create a (u,v,1) matrix for all src points
     mp_src_3d = np.append(mp_src, np.ones_like(mp_src[0:1]),axis=0)
-
-    # Calculate and normalized dst from src & H
-    mp_dst_estimated = cv2.warpPerspective(mp_src_3d, H)
-    mp_dst_est_norm = np.divide(mp_dst_estimated, mp_dst_estimated[2])
+    mp_src_t = (mp_src.transpose()).reshape(-1,1,2)
+    # Calculate and normalize dst from src & H
+    ## TODO: edit call to perspectiveTransform
+    mp_dst_estimated = cv2.perspectiveTransform(np.float32(mp_src_t.reshape(-1,1,2)), np.float32(H))
+    #mp_dst_estimated = np.matmul(H, mp_src_3d)
+    #mp_dst_est_norm = np.divide(mp_dst_estimated, mp_dst_estimated[2])
+    mp_dst_t = np.transpose(mp_dst)
 
     # calculate distance between estimation and destination
-    dst_diff = mp_dst_est_norm[0:2,:] - mp_dst
-    distance = np.sqrt(np.power(dst_diff[0],2) + np.power(dst_diff[1],2))
+    mp_dst_estimated_2D = mp_dst_estimated[:,0]
+    dst_diff = mp_dst_estimated[:,0] - mp_dst_t
+    distance = np.sqrt(np.power(dst_diff[:,0],2) + np.power(dst_diff[:,1],2))
 
     # pass TH for inlier definition
     inlier_indices = distance < max_err
-    inlier_points = distance[inlier_indices]
+    inlier_points_dist = distance[inlier_indices]
 
     # calculate percentage of data fitting model
-    fit_percent = len(inlier_points)/len(distance)
+    fit_percent = len(inlier_points_dist)/len(distance)
 
     # Calculate MSE for inliers
-    dist_mse = np.mean(np.square(inlier_points))
+    dist_mse = np.mean(np.square(inlier_points_dist))
 
 
     return fit_percent, dist_mse
@@ -90,8 +94,8 @@ def compute_homography(mp_src, mp_dst, inliers_percent, max_err):
 
         ## sample n indices
         indices_i = np.asarray(random.sample(indices, n))
-        batch_points_src = mp_src[:,indices_i]
-        batch_points_dst = mp_dst[:,indices_i]
+        batch_points_src = np.asarray([mp_src[0,indices_i],mp_src[1,indices_i]])
+        batch_points_dst = np.asarray([mp_dst[0,indices_i],mp_dst[1,indices_i]])
 
         ## calculate model
         H_i = compute_homography_naive(batch_points_src, batch_points_dst)
@@ -102,8 +106,10 @@ def compute_homography(mp_src, mp_dst, inliers_percent, max_err):
             # H_i_all_inliers = compute_homography_naive(batch_points_src, batch_points_dst)
             return H_i
 
-    print('RANSAC has failed to find a model which comply to inliers percent of ' + inliers_percent + 'and max error of ' + max_err)
-
+    print('RANSAC has failed to find a model which comply to inliers percent of ')
+    print(inliers_percent)
+    print('and max error of ')
+    print(max_err)
     return False
 
 def panorama(img_src, img_dst, match_p_src, match_p_dst, inliers_percent, max_err):
