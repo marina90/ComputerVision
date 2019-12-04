@@ -68,4 +68,4 @@ H = compute_homography(match_perfect['match_p_src'], match_perfect['match_p_dst'
 max_err = 25
 inliers_percent = 0.8
 
-img_pan = panorama(src, dst,matches['match_p_src'], matches['match_p_dst'], fit_percent, max_err)
+img_pan = panorama(src, dst,matches['match_p_src'], matches['match_p_dst'], inliers_percent, max_err)
