@@ -44,11 +44,11 @@ def test_homography(H, mp_src, mp_dst, max_err):
     ### fit_percent = The probability (between 0 and 1) validly mapped src points (inliers)
     ### dist_mse = Mean square error of the distances between validly mapped src points, to their corresponding dst points (only for inliers).
 
-    # Create a (u,v,1) matrix for all src points
-    mp_src_3d = np.append(mp_src, np.ones_like(mp_src[0:1]),axis=0)
+    ## Create a (u,v,1) matrix for all src points
+    #mp_src_3d = np.append(mp_src, np.ones_like(mp_src[0:1]),axis=0)
     mp_src_t = (mp_src.transpose()).reshape(-1,1,2)
+
     # Calculate and normalize dst from src & H
-    ## TODO: edit call to perspectiveTransform
     mp_dst_estimated = cv2.perspectiveTransform(np.float32(mp_src_t.reshape(-1,1,2)), np.float32(H))
     #mp_dst_estimated = np.matmul(H, mp_src_3d)
     #mp_dst_est_norm = np.divide(mp_dst_estimated, mp_dst_estimated[2])
@@ -103,8 +103,20 @@ def compute_homography(mp_src, mp_dst, inliers_percent, max_err):
         ## calculate model fit
         fit_percent_i, dist_mse_i = test_homography(H_i, mp_src, mp_dst, max_err)
         if (fit_percent_i >= inliers_percent):
-            # H_i_all_inliers = compute_homography_naive(batch_points_src, batch_points_dst)
-            return H_i
+            ## calcaulte the model using all inlier points
+            ## TODO: consider writing it as a seperate function
+            mp_src_t = (mp_src.transpose()).reshape(-1, 1, 2)
+            # Calculate and normalize dst from src & H
+            mp_dst_estimated = cv2.perspectiveTransform(np.float32(mp_src_t.reshape(-1, 1, 2)), np.float32(H_i))
+            mp_dst_t = np.transpose(mp_dst)
+            # calculate distance between estimation and destination
+            dst_diff = mp_dst_estimated[:, 0] - mp_dst_t
+            distance = np.sqrt(np.power(dst_diff[:, 0], 2) + np.power(dst_diff[:, 1], 2))
+            # pass TH for inlier definition
+            inlier_indices = distance < max_err
+            H_i_all_inliers = compute_homography_naive(mp_src[:,inlier_indices], mp_dst[:,inlier_indices])
+
+            return H_i_all_inliers
 
     print('RANSAC has failed to find a model which comply to inliers percent of ')
     print(inliers_percent)
