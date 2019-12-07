@@ -127,53 +127,6 @@ def compute_homography(mp_src, mp_dst, inliers_percent, max_err):
     return False
 
 
-def panorama(img_src, img_dst, match_p_src, match_p_dst, inliers_percent, max_err):
-    # TODO: add here ransac homography when Yonatan finish his part
-    H = compute_homography_naive(match_p_src, match_p_dst)
-    transformed_img_src = cv2.warpPerspective(img_src, H, np.shape(img_src)[0:2])
-
-    upper_left_point = find_upper_left_point(match_p_src)
-
-    if True:
-        plt.figure()
-        plt.subplot(2, 2, 1)
-        plt.imshow(img_src)
-        plt.title('img_src')
-        plt.scatter(upper_left_point[0], upper_left_point[1], marker='x', color='r')
-        plt.subplot(2, 2, 2)
-        plt.imshow(transformed_img_src)
-        plt.title('transformed_img_src')
-        plt.scatter(match_p_dst[0, :], match_p_dst[1, :], marker='x', color='r')
-        plt.show(block=False)
-
-    pad_x = round(2 * np.shape(img_dst)[0])
-    pad_y = np.shape(img_dst)[1]
-
-    transformed_img_dst = cv2.warpPerspective(img_dst, np.linalg.inv(H),
-                                              (np.shape(img_src)[0] + pad_x, np.shape(img_src)[1] + pad_y))
-
-    if DEBUG:
-        plt.subplot(2, 2, 3)
-        plt.imshow(img_dst)
-        plt.title('img_dst')
-        plt.subplot(2, 2, 4)
-        plt.imshow(transformed_img_dst)
-        plt.title('transformed_img_dst')
-        plt.show(block=False)
-
-    output_image = np.uint8(np.zeros(np.shape(transformed_img_dst)))
-    output_image[0:np.shape(transformed_img_dst)[0], 0:np.shape(transformed_img_dst)[1],
-    :] = output_image + transformed_img_dst
-    output_image[0:np.shape(img_src)[0], 0:np.shape(img_src)[1], :] = img_src
-
-    if DEBUG:
-        plt.figure()
-        plt.imshow(output_image)
-        plt.show(block=False)
-
-    return
-
-
 def find_upper_left_point(match_p_src):
     dist_from_0_0 = np.linalg.norm(match_p_src.T, axis=1)
     arg_min = np.argmin(dist_from_0_0)
@@ -223,9 +176,11 @@ def panorama(img_src, img_dst, match_p_src, match_p_dst, inliers_percent, max_er
         plt.title('transformed_img_dst')
         plt.show(block=False)
 
-    output_image = np.uint8(np.zeros(np.shape(transformed_img_dst)))
+    #output_image = np.uint8(np.zeros(np.shape(transformed_img_dst)))
+    output_image = np.uint8(np.zeros([max(np.shape(transformed_img_dst)[0],np.shape(img_src)[0]),max(np.shape(transformed_img_dst)[1],np.shape(img_src)[1]),np.shape(img_src)[2]]))
     output_image[0:np.shape(transformed_img_dst)[0], 0:np.shape(transformed_img_dst)[1],
-    :] = output_image + transformed_img_dst
+    :] = output_image[0:np.shape(transformed_img_dst)[0], 0:np.shape(transformed_img_dst)[1],
+    :] + transformed_img_dst
     output_image[0:np.shape(img_src)[0], 0:np.shape(img_src)[1], :] = img_src
 
     if DEBUG:
@@ -233,4 +188,4 @@ def panorama(img_src, img_dst, match_p_src, match_p_dst, inliers_percent, max_er
         plt.imshow(output_image)
         plt.show(block=False)
 
-    return
+    return output_image
